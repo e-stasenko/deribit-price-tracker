@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standart]
+sqlalchemy
+psycopg2-binary
+alembic
+celery
+redis
+aiohttp
+pydantic-settings
+python-dotenv
+pytest
+pytest-asyncio
+htppx
