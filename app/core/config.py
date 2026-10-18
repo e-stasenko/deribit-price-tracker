@@ -4,21 +4,32 @@ from urllib.parse import quote_plus
 from pydantic import AnyHttpUrl, RedisDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
-    #App
-    app_title: str = 'Трекер цен для биржи Deribit'
-    description: str = 'Трекер цен для биржи Deribit' 
+    # App
+    app_title: str = "Трекер цен для биржи Deribit"
+    description: str = "Трекер цен для биржи Deribit"
     POLL_INTERVAL_MINUTES: int = 1
 
     # Postgress
     POSTGRES_USER: str
-    POSTGRES_PASSWORD:  str
+    POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     POSTGRES_HOST: str
     POSTGRES_PORT: int
     POSTGRES_DRIVER: str = "psycopg2"
 
     DATABASE_URL_OVERRIDE: str | None = None
+
+    # Redis
+    REDIS_URL: RedisDsn
+
+    # Deribit API
+    DERIBIT_BASE_URL: AnyHttpUrl
+
+    # Настройки Celery
+    CELERY_BROKER_URL: str = "amqp://guest:guest@localhost:5672//"
+    CELERY_RESULT_BACKEND: str = "rpc://"
 
     @computed_field
     @property
@@ -35,17 +46,10 @@ class Settings(BaseSettings):
 
         return f"postgresql+{driver}://{user}:{password}@{host}:{port}/{db}"
 
-    # Redis
-    REDIS_URL: RedisDsn
-
-    # Deribit API
-    DERIBIT_BASE_URL: AnyHttpUrl
-
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -1,17 +1,18 @@
 from decimal import Decimal
-
-from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PriceBase(BaseModel):
-    ticker: Literal["BTC", "ETH"] = Field(..., max_length=25, description="Тикер (BTC или ETH)")
+    ticker: Literal["BTC", "ETH"] = Field(
+        ..., max_length=25, description="Тикер (BTC или ETH)"
+    )
     price: Decimal = Field(..., gt=0, description="Цена")
     timestamp: int = Field(..., gt=0, description="UNIX время")
 
 
 class PriceCreate(PriceBase):
-
     model_config = ConfigDict(extra="forbid")
 
     @field_validator("ticker")
