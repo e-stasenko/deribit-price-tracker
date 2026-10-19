@@ -1,44 +1,48 @@
 import asyncio
 import time
 from decimal import Decimal
-
 import aiohttp
+
+from pydantic import AnyHttpUrl
 
 
 class DeribitClient:
-    BASE_URL = "https://www.deribit.com/api/v2/public"
-    TICKER_MAP = {"BTC": "btc_usd", "ETH": "eth_usd"}
+    def __init__(self, base_url: str | AnyHttpUrl, timeout: float = 10.0):
+        self._base_url = str(base_url).rstrip("/")
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
+
+    SUPPORTED_TICKERS = frozenset({"btc_usd", "eth_usd"})
 
     async def get_index_price(self, ticker: str) -> dict:
         """
-        Получает текущую цену и время получения с биржи Deribit.
-        Возвращает словарь: {"price": Decimal, "timestamp": int}
+        ticker — формат Deribit и формат хранения: 'btc_usd' | 'eth_usd'.
+        Возвращает: {"ticker": str, "price": Decimal, "timestamp": int}
         """
-        if ticker not in self.TICKER_MAP:
+        if ticker not in self.SUPPORTED_TICKERS:
             raise ValueError(
-                f"Тикер {ticker} не поддерживается. Доступны: {list(self.TICKER_MAP.keys())}"
+                f"Unsupported ticker {ticker!r}; "
+                f"available: {sorted(self.SUPPORTED_TICKERS)}"
             )
 
-        deribit_ticker = self.TICKER_MAP[ticker]
-        url = f"{self.BASE_URL}/get_index_price"
-        params = {"index_name": deribit_ticker}
+        url = f"{self._base_url}/get_index_price"
+        params = {"index_name": ticker}
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=10) as response:
+            async with aiohttp.ClientSession(timeout=self._timeout) as session:
+                async with session.get(url, params=params) as response:
                     response.raise_for_status()
-
                     data = await response.json()
-
-                    timestamp = int(time.time())
-                    price = Decimal(str(data["result"]["index_price"]))
-
-                    return {"price": price, "timestamp": timestamp}
-
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(f"Deribit timeout for {ticker}") from e
         except aiohttp.ClientError as e:
-            print(f"[DeribitClient] Ошибка сети при запросе {ticker}: {e}")
-            raise ConnectionError(f"Не удалось получить цену с Deribit: {e}")
+            raise ConnectionError(f"Deribit request failed for {ticker}: {e}") from e
 
-        except asyncio.TimeoutError:
-            print(f"[DeribitClient] Таймаут при запросе {ticker}")
-            raise TimeoutError("Deribit не ответил вовремя")
+        result = data.get("result")
+        if not isinstance(result, dict) or "index_price" not in result:
+            raise ValueError(f"Unexpected Deribit payload for {ticker}: {data}")
+
+        return {
+            "ticker": ticker,
+            "price": Decimal(str(result["index_price"])),
+            "timestamp": int(time.time()),
+        }
