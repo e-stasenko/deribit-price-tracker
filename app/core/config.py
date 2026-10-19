@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     # App
     app_title: str = "Трекер цен для биржи Deribit"
     description: str = "Трекер цен для биржи Deribit"
-    POLL_INTERVAL_MINUTES: int = 1
 
     # Postgress
     POSTGRES_USER: str
@@ -26,10 +25,6 @@ class Settings(BaseSettings):
 
     # Deribit API
     DERIBIT_BASE_URL: AnyHttpUrl
-
-    # Настройки Celery
-    CELERY_BROKER_URL: str = "amqp://guest:guest@localhost:5672//"
-    CELERY_RESULT_BACKEND: str = "rpc://"
 
     @computed_field
     @property
