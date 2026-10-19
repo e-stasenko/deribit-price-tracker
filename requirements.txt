@@ -69,5 +69,5 @@ tzlocal==5.4.4
 uvicorn==0.54.0
 vine==5.1.0
 virtualenv==21.14.11
-wcwidth==0.9.2
+wcwidth
 yarl==1.25.1
