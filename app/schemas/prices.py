@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PriceBase(BaseModel):
-    ticker: Literal["BTC", "ETH"] = Field(
+    ticker: Literal["btc_usd", "eth_usd"] = Field(
         ..., max_length=25, description="Тикер (BTC или ETH)"
     )
     price: Decimal = Field(..., gt=0, description="Цена")

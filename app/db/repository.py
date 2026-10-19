@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models import Price
-from app.schemas.price import PriceCreate
+from app.schemas.prices import PriceCreate
 
 
 class PriceRepository:
@@ -13,7 +13,7 @@ class PriceRepository:
     def create(self, price_data: PriceCreate) -> Price:
         db_price = Price(**price_data.model_dump())
         self.db.add(db_price)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(db_price)
         return db_price
 
