@@ -1,19 +1,24 @@
 import asyncio
+import logging
 
 from app.celery_app import celery_app
 from app.clients.deribit import DeribitClient
+from app.core.config import get_settings
 from app.db.repository import PriceRepository
 from app.db.session import SessionLocal
 from app.schemas.prices import PriceCreate
 
+logger = logging.getLogger(__name__)
+
 
 async def _fetch_prices():
-    client = DeribitClient()
-    btc_data, eth_data = await asyncio.gather(
-        client.get_index_price("BTC"), client.get_index_price("ETH")
-    )
+    client = DeribitClient(base_url=get_settings().DERIBIT_BASE_URL)
 
-    return [("btc_usd", btc_data), ("eth_usd", eth_data)]
+    tickers = sorted(DeribitClient.SUPPORTED_TICKERS)
+    results = await asyncio.gather(
+        *(client.get_index_price(t) for t in tickers)
+    )
+    return list(results)
 
 
 @celery_app.task
@@ -21,25 +26,35 @@ def fetch_and_save_prices():
     try:
         results = asyncio.run(_fetch_prices())
     except Exception as e:
-        print(f"Не удалось получить данные с биржи: {e}")
-        return
+        logger.error("fetch from Deribit failed: %s", e)
+        return {"saved": 0, "failed": 0, "error": str(e)}
 
     db = SessionLocal()
     repo = PriceRepository(db)
 
+    saved = 0
+    failed = 0
     try:
-        for ticker, data in results:
-            price = data["price"]
-            timestamp = data["timestamp"]
+        for item in results:
+            try:
+                price_create = PriceCreate(
+                    ticker=item["ticker"],
+                    price=item["price"],
+                    timestamp=item["timestamp"],
+                )
+                repo.create(price_create)
+                saved += 1
+            except Exception as e:
+                failed += 1
+                logger.warning("save failed for ticker=%s: %s", item.get("ticker"), e)
 
-            price_create = PriceCreate(ticker=ticker, price=price, timestamp=timestamp)
-            repo.create(price_create)
+        if saved:
+            db.commit()
 
-        print(f"Успешно сохранено {len(results)} записей в БД")
-
-    except Exception as e:
-        print(f"Ошибка при сохранении в БД: {e}")
+        logger.info("prices saved: %d, failed: %d", saved, failed)
+        return {"saved": saved, "failed": failed}
+    except Exception:
         db.rollback()
-
+        raise
     finally:
         db.close()

@@ -1,14 +1,14 @@
 from celery import Celery
 from celery.schedules import crontab
-from core.config import get_settings
+from app.core.config import get_settings
 
 settings = get_settings()
 
 
 celery_app = Celery(
     "Deribit-tracker",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND,
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
     include=["app.tasks.price_fetcher"],
 )
 
