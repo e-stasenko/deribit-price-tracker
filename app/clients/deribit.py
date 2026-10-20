@@ -1,17 +1,26 @@
 import asyncio
 import time
 from decimal import Decimal
-import aiohttp
 
+import aiohttp
 from pydantic import AnyHttpUrl
 
 
 class DeribitClient:
-    def __init__(self, base_url: str | AnyHttpUrl, timeout: float = 10.0):
+    SUPPORTED_TICKERS = frozenset({"btc_usd", "eth_usd"})
+
+    def __init__(self, base_url: str | AnyHttpUrl, timeout: float = 10.0) -> None:
         self._base_url = str(base_url).rstrip("/")
         self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._session: aiohttp.ClientSession | None = None
 
-    SUPPORTED_TICKERS = frozenset({"btc_usd", "eth_usd"})
+    async def __aenter__(self) -> "DeribitClient":
+        self._session = aiohttp.ClientSession(timeout=self._timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._session and not self._session.closed:
+            await self._session.close()
 
     async def get_index_price(self, ticker: str) -> dict:
         """
@@ -24,14 +33,18 @@ class DeribitClient:
                 f"available: {sorted(self.SUPPORTED_TICKERS)}"
             )
 
+        if self._session is None or self._session.closed:
+            raise RuntimeError(
+                "Use DeribitClient inside 'async with DeribitClient(...) as client:'"
+            )
+
         url = f"{self._base_url}/get_index_price"
         params = {"index_name": ticker}
 
         try:
-            async with aiohttp.ClientSession(timeout=self._timeout) as session:
-                async with session.get(url, params=params) as response:
-                    response.raise_for_status()
-                    data = await response.json()
+            async with self._session.get(url, params=params) as response:
+                response.raise_for_status()
+                data = await response.json()
         except asyncio.TimeoutError as e:
             raise TimeoutError(f"Deribit timeout for {ticker}") from e
         except aiohttp.ClientError as e:
