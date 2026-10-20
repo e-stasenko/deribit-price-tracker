@@ -11,14 +11,11 @@ from app.schemas.prices import PriceCreate
 logger = logging.getLogger(__name__)
 
 
-async def _fetch_prices():
-    client = DeribitClient(base_url=get_settings().DERIBIT_BASE_URL)
-
-    tickers = sorted(DeribitClient.SUPPORTED_TICKERS)
-    results = await asyncio.gather(
-        *(client.get_index_price(t) for t in tickers)
-    )
-    return list(results)
+async def _fetch_prices() -> list[dict]:
+    async with DeribitClient(base_url=get_settings().DERIBIT_BASE_URL) as client:
+        tickers = sorted(DeribitClient.SUPPORTED_TICKERS)
+        results = await asyncio.gather(*(client.get_index_price(t) for t in tickers))
+        return list(results)
 
 
 @celery_app.task
