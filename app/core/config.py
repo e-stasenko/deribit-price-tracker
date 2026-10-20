@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # App
-    app_title: str = "Трекер цен для биржи Deribit"
+    app_title: str = "Трекер цен BTC ETH для биржи Deribit"
     description: str = "Трекер цен для биржи Deribit"
 
     # Postgress

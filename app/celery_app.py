@@ -1,5 +1,6 @@
 from celery import Celery
 from celery.schedules import crontab
+
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -7,8 +8,8 @@ settings = get_settings()
 
 celery_app = Celery(
     "Deribit-tracker",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
+    broker=str(settings.REDIS_URL),
+    backend=str(settings.REDIS_URL),
     include=["app.tasks.price_fetcher"],
 )
 
